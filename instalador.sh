@@ -7,13 +7,15 @@ cat <<EOL > index.html
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consulta de Billeteras Bitcoin</title>
+    <title>Consulta de Billeteras</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>Consulta de Billeteras Bitcoin</h1>
-        <div id="resultados"></div>
+        <h1>Consulta de Billeteras con Saldo</h1>
+        <div id="conSaldo"></div>
+        <h2>Billeteras sin saldo</h2>
+        <div id="sinSaldo"></div>
     </div>
     <script src="script.js"></script>
 </body>
@@ -38,35 +40,46 @@ h1 {
     color: #333;
 }
 
+h2 {
+    color: #333;
+    margin-top: 40px;
+}
+
 p {
     font-size: 1.2em;
     color: #555;
 }
 
-#resultados {
+#conSaldo, #sinSaldo {
     margin-top: 20px;
     font-size: 1.1em;
 }
 
 .billetera {
     margin: 10px 0;
-    padding: 5px;
+    padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
+    background-color: #f1f1f1;
 }
 
 .saldo {
     font-weight: bold;
-    color: #28a745;
+    color: #28a745; /* Verde para saldo */
+}
+
+.saldo-none {
+    color: #ff0000; /* Rojo para sin saldo */
+}
+
+.hash {
+    font-size: 0.9em;
+    color: #aaa;
 }
 EOL
 
 # Crear archivo script.js
 cat <<EOL > script.js
-// Definimos el hash inicial y el final
-const hashInicial = BigInt("0x0000000000000000000000000000000000000000000000000000000000000001");
-const hashFinal = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-
 // Función para consultar el saldo de una billetera
 async function consultarSaldo(direccion) {
     const apiURL = \`https://blockchain.info/q/addressbalance/\${direccion}?confirmations=6\`;
@@ -81,30 +94,85 @@ async function consultarSaldo(direccion) {
 }
 
 // Función para generar una dirección Bitcoin a partir de un hash
-function generarDireccion(hash) {
-    // Aquí se utilizaría una librería para generar una dirección Bitcoin válida a partir de un hash
-    // Esto es solo un ejemplo de cómo se vería la dirección generada a partir de un hash.
-    return \`1Billetera\${hash.toString(16).slice(0, 12)}\`;
+function generarDireccionBitcoin(hash) {
+    // Aquí iría la lógica para convertir un hash en una dirección Bitcoin
+    return \`1Bitcoin\${hash.toString(16).slice(0, 12)}\`;
+}
+
+// Función para generar una dirección Bitcoin Cash a partir de un hash
+function generarDireccionBitcoinCash(hash) {
+    // Aquí iría la lógica para convertir un hash en una dirección Bitcoin Cash
+    return \`bitcoincash:q\${hash.toString(16).slice(0, 12)}\`;
+}
+
+// Función para generar una dirección Ethereum a partir de un hash
+function generarDireccionEthereum(hash) {
+    // Aquí iría la lógica para convertir un hash en una dirección Ethereum
+    return \`0x\${hash.toString(16).slice(0, 12)}\`;
+}
+
+// Función para generar una dirección Litecoin a partir de un hash
+function generarDireccionLitecoin(hash) {
+    // Aquí iría la lógica para convertir un hash en una dirección Litecoin
+    return \`L\${hash.toString(16).slice(0, 12)}\`;
+}
+
+// Función para generar direcciones de varias criptomonedas
+function generarDirecciones(hash) {
+    return {
+        bitcoin: generarDireccionBitcoin(hash),
+        bitcoinCash: generarDireccionBitcoinCash(hash),
+        ethereum: generarDireccionEthereum(hash),
+        litecoin: generarDireccionLitecoin(hash),
+    };
 }
 
 // Función principal que itera sobre los hashes
 async function iterarHashes() {
-    let resultadosDiv = document.getElementById('resultados');
+    let conSaldoDiv = document.getElementById('conSaldo');
+    let sinSaldoDiv = document.getElementById('sinSaldo');
+    
+    // Rango de hashes a iterar (desde el 0000000000000000000000000000000000000000000000000000000000000001 hasta el fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140)
+    const hashInicial = BigInt("0x0000000000000000000000000000000000000000000000000000000000000001");
+    const hashFinal = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
     let hashActual = hashInicial;
-
     while (hashActual <= hashFinal) {
-        let direccion = generarDireccion(hashActual);
-        let saldo = await consultarSaldo(direccion);
+        let direcciones = generarDirecciones(hashActual);
         
-        let divBilletera = document.createElement('div');
-        divBilletera.classList.add('billetera');
-        divBilletera.innerHTML = \`
-            <p><strong>\${direccion}</strong></p>
-            <p id="saldo\${direccion}">Saldo: \${saldo !== null ? saldo + " BTC" : "No disponible"}</p>
-        \`;
+        let billeteraEncontrada = false;
+        for (let tipo in direcciones) {
+            let direccion = direcciones[tipo];
+            let saldo = await consultarSaldo(direccion);
 
-        resultadosDiv.appendChild(divBilletera);
-        
+            // Crear un div para la billetera
+            let divBilletera = document.createElement('div');
+            divBilletera.classList.add('billetera');
+            let saldoTexto = saldo !== null ? \`Saldo: \${saldo} BTC\` : "No disponible";
+
+            // Si la billetera tiene saldo, la mostramos en la parte superior
+            if (saldo && saldo > 0) {
+                divBilletera.classList.add('saldo');
+                divBilletera.innerHTML = \`
+                    <p><strong>\${direccion} (\${tipo})</strong></p>
+                    <p class="hash">Hash: \${hashActual.toString(16)}</p>
+                    <p class="saldo">\${saldoTexto}</p>
+                \`;
+                conSaldoDiv.appendChild(divBilletera);
+                billeteraEncontrada = true;
+            } else {
+                // Si no tiene saldo, la mostramos al final
+                divBilletera.classList.add('saldo-none');
+                divBilletera.innerHTML = \`
+                    <p><strong>\${direccion} (\${tipo})</strong></p>
+                    <p class="hash">Hash: \${hashActual.toString(16)}</p>
+                    <p class="saldo">\${saldoTexto}</p>
+                \`;
+                sinSaldoDiv.appendChild(divBilletera);
+            }
+        }
+
+        // Aumentar el hash para iterar al siguiente
         hashActual++;
     }
 }
