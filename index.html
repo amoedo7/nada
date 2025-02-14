@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Consulta de Billeteras Derivadas</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Se incluyen las bibliotecas desde CDN -->
+  <!-- Polyfill para Buffer (necesario en navegadores) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/6.0.3/buffer.min.js"></script>
+  <!-- Incluir bitcoinjs-lib y ethers.js desde CDN -->
   <script src="https://unpkg.com/bitcoinjs-lib@6.0.0/dist/bitcoinjs-lib.min.js"></script>
   <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
 </head>
