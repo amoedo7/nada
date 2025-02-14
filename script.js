@@ -1,11 +1,12 @@
 // ---------------------------
-// CONFIGURACIÓN DE REDES Y APIS
+// CONFIGURACIÓN DE CRIPTOMONEDAS
 // ---------------------------
 
-// Para las monedas basadas en Bitcoin, definimos los parámetros personalizados.
-const networks = {
-  bitcoin: {
-    name: "Bitcoin",
+// Configuraciones para monedas basadas en Bitcoin (se usarán para Bitcoin, Bitcoin Cash, SV, Gold, Litecoin, Dogecoin, Dash, Zcash y Clams)
+// Los parámetros de red se basan en bitcoinjs-lib
+const bitcoinCoins = [
+  {
+    coin: "Bitcoin",
     network: {
       messagePrefix: '\x18Bitcoin Signed Message:\n',
       bech32: 'bc',
@@ -16,8 +17,8 @@ const networks = {
     },
     api: "https://api.blockchair.com/bitcoin/dashboards/address/"
   },
-  bitcoincash: {
-    name: "Bitcoin Cash",
+  {
+    coin: "Bitcoin Cash",
     network: {
       messagePrefix: '\x18Bitcoin Signed Message:\n',
       bip32: { public: 0x0488b21e, private: 0x0488ade4 },
@@ -27,8 +28,8 @@ const networks = {
     },
     api: "https://api.blockchair.com/bitcoin-cash/dashboards/address/"
   },
-  bitcoinsv: {
-    name: "Bitcoin SV",
+  {
+    coin: "Bitcoin SV",
     network: {
       messagePrefix: '\x18Bitcoin Signed Message:\n',
       bip32: { public: 0x0488b21e, private: 0x0488ade4 },
@@ -38,8 +39,8 @@ const networks = {
     },
     api: "https://api.blockchair.com/bitcoin-sv/dashboards/address/"
   },
-  bitcoingold: {
-    name: "Bitcoin Gold",
+  {
+    coin: "Bitcoin Gold",
     network: {
       messagePrefix: '\x18Bitcoin Signed Message:\n',
       bip32: { public: 0x0488b21e, private: 0x0488ade4 },
@@ -49,8 +50,8 @@ const networks = {
     },
     api: "https://api.blockchair.com/bitcoin-gold/dashboards/address/"
   },
-  litecoin: {
-    name: "Litecoin",
+  {
+    coin: "Litecoin",
     network: {
       messagePrefix: '\x19Litecoin Signed Message:\n',
       bech32: 'ltc',
@@ -61,8 +62,8 @@ const networks = {
     },
     api: "https://api.blockchair.com/litecoin/dashboards/address/"
   },
-  dogecoin: {
-    name: "Dogecoin",
+  {
+    coin: "Dogecoin",
     network: {
       messagePrefix: '\x19Dogecoin Signed Message:\n',
       bip32: { public: 0x02facafd, private: 0x02fac398 },
@@ -72,8 +73,8 @@ const networks = {
     },
     api: "https://api.blockchair.com/dogecoin/dashboards/address/"
   },
-  dash: {
-    name: "Dash",
+  {
+    coin: "Dash",
     network: {
       messagePrefix: '\x19DarkCoin Signed Message:\n',
       bip32: { public: 0x02fe52cc, private: 0x02fe52f8 },
@@ -83,19 +84,19 @@ const networks = {
     },
     api: "https://api.blockchair.com/dash/dashboards/address/"
   },
-  zcash: {
-    name: "Zcash",
+  {
+    coin: "Zcash",
     network: {
       messagePrefix: '\x18Zcash Signed Message:\n',
       bip32: { public: 0x0488b21e, private: 0x0488ade4 },
-      pubKeyHash: 0x1c,  // Aproximado para direcciones transparentes
+      pubKeyHash: 0x1c,
       scriptHash: 0x1c,
       wif: 0x80
     },
     api: "https://api.blockchair.com/zcash/dashboards/address/"
   },
-  clams: {
-    name: "Clams",
+  {
+    coin: "Clams",
     network: {
       messagePrefix: '\x18Clams Signed Message:\n',
       bip32: { public: 0x0488b21e, private: 0x0488ade4 },
@@ -103,112 +104,109 @@ const networks = {
       scriptHash: 0x14,
       wif: 0xc9
     },
-    api: "https://api.blockchair.com/clams/dashboards/address/" // Si existe endpoint
+    api: "https://api.blockchair.com/clams/dashboards/address/" // Puede no estar operativo
   }
-};
+];
 
-// Configuración para Ethereum (usamos ethers.js)
-const ethereum = {
-  name: "Ethereum",
+// Configuración para Ethereum (se tratará por separado)
+const ethereumCoin = {
+  coin: "Ethereum",
   api: "https://api.blockchair.com/ethereum/dashboards/address/"
 };
 
 // ---------------------------
-// FUNCIONES PARA GENERAR DIRECCIONES
+// FUNCIONES DE GENERACIÓN DE DIRECCIONES
 // ---------------------------
 
-// Para monedas basadas en Bitcoin (usando bitcoinjs-lib)
-function generateAddress(networkParams, privateKeyHex) {
-  const pkBuffer = bitcoinjsLib.Buffer.from(privateKeyHex, 'hex');
-  const keyPair = bitcoinjsLib.ECPair.fromPrivateKey(pkBuffer, { network: networkParams });
-  const { address } = bitcoinjsLib.payments.p2pkh({ pubkey: keyPair.publicKey, network: networkParams });
-  return address;
-}
-
-// Para Ethereum (usando ethers.js)
-function generateEthereumAddress(privateKeyHex) {
-  const wallet = new ethers.Wallet(privateKeyHex);
-  return wallet.address;
-}
-
-// ---------------------------
-// FUNCIÓN PARA CONSULTAR SALDO MEDIANTE API (Blockchair)
-// La función espera que la respuesta tenga la estructura: 
-// data.data[ADDRESS].address.balance
-async function getBalance(apiUrl, address) {
+// Para monedas basadas en Bitcoin (usa bitcoinjs-lib)
+// Se asume que el hash (clave privada) se provee como string hexadecimal de 64 dígitos
+function generateBitcoinAddress(privateKeyHex, network) {
   try {
-    let response = await fetch(apiUrl + address);
-    let data = await response.json();
-    // Si la API responde correctamente:
-    if (data && data.data && data.data[address] && data.data[address].address) {
-      return data.data[address].address.balance;
-    } else {
-      return 0;
-    }
+    const pkBuffer = Buffer.from(privateKeyHex, 'hex');
+    const keyPair = bitcoinjsLib.ECPair.fromPrivateKey(pkBuffer, { network: network });
+    const { address } = bitcoinjsLib.payments.p2pkh({ pubkey: keyPair.publicKey, network: network });
+    return address;
   } catch (err) {
-    console.error("Error en getBalance:", err);
-    return 0;
+    console.error("Error generando dirección para clave:", privateKeyHex, err);
+    return null;
+  }
+}
+
+// Para Ethereum (usa ethers.js)
+function generateEthereumAddress(privateKeyHex) {
+  try {
+    const wallet = new ethers.Wallet(privateKeyHex);
+    return wallet.address;
+  } catch (err) {
+    console.error("Error generando dirección Ethereum para clave:", privateKeyHex, err);
+    return null;
   }
 }
 
 // ---------------------------
+// FUNCIÓN PARA CONSULTAR SALDO
+// Se utiliza la API de Blockchair; se espera que la respuesta tenga
+// data.data[ADDRESS].address.balance
+async function getBalance(apiUrl, address) {
+  try {
+    const response = await fetch(apiUrl + address);
+    const json = await response.json();
+    if (json && json.data && json.data[address] && json.data[address].address) {
+      return Number(json.data[address].address.balance);
+    }
+  } catch (err) {
+    console.error("Error consultando balance para", address, err);
+  }
+  return 0;
+}
+
+// ---------------------------
 // FUNCIÓN PRINCIPAL: ITERAR SOBRE UN RANGO DE HASHES
-// NOTA: Debido a que el rango completo de un hash256 es gigantesco,
-// para efectos de demostración iteramos solo 'iterations' valores consecutivos.
+// Para efectos de demostración, se iterarán 'iterations' claves consecutivas
 (async function() {
-  // Hash inicial (en formato de 64 dígitos hex)
   const startHash = "0000000000000000000000000000000000000000000000000000000000000001";
-  const iterations = 10; // Cambiar este valor según lo deseado
-  const withBalance = [];
-  const noBalance = [];
+  const iterations = 10; // Número de claves a probar (puedes aumentarlo si lo deseas)
+  const resultsWithBalance = [];
+  const resultsNoBalance = [];
   
   for (let i = 0; i < iterations; i++) {
-    // Calcular hash actual (como BigInt) y formatearlo a 64 dígitos
-    let currentHashBig = BigInt("0x" + startHash) + BigInt(i);
-    let currentHashHex = currentHashBig.toString(16).padStart(64, '0');
+    // Sumar i al hash inicial y formatear a 64 dígitos
+    let currentBig = BigInt("0x" + startHash) + BigInt(i);
+    let currentHash = currentBig.toString(16).padStart(64, '0');
     
-    // Para cada moneda basada en Bitcoin
-    for (let coin in networks) {
-      const net = networks[coin];
-      let address;
-      try {
-        address = generateAddress(net.network, currentHashHex);
-      } catch (e) {
-        address = "Error generando dirección";
-      }
-      // Consultar saldo (balance en satoshis)
-      let balanceRaw = await getBalance(net.api, address);
-      // Convertir satoshis a la unidad principal (si es mayor a 0)
-      let displayBalance = (balanceRaw > 0) ? (balanceRaw / 1e8).toFixed(8) : "0.00000000";
-      
+    // Para cada moneda basada en Bitcoin:
+    for (const coinConfig of bitcoinCoins) {
+      const addr = generateBitcoinAddress(currentHash, coinConfig.network);
+      if (!addr) continue;
+      const bal = await getBalance(coinConfig.api, addr);
       const result = {
-        coin: net.name,
-        address: address,
-        hash: currentHashHex,
-        balance: displayBalance
+        coin: coinConfig.coin,
+        address: addr,
+        hash: currentHash,
+        balance: bal
       };
-      if (balanceRaw > 0) {
-        withBalance.push(result);
+      if (bal > 0) {
+        resultsWithBalance.push(result);
       } else {
-        noBalance.push(result);
+        resultsNoBalance.push(result);
       }
     }
     
     // Para Ethereum:
-    let ethAddress = generateEthereumAddress(currentHashHex);
-    let ethBalanceRaw = await getBalance(ethereum.api, ethAddress);
-    // Convertir de wei a ETH (asumiendo que la API devuelve wei)
-    let ethDisplayBalance = (ethBalanceRaw > 0) ? (ethBalanceRaw / 1e18).toFixed(8) : "0.00000000";
-    const ethResult = {
-      coin: ethereum.name,
-      address: ethAddress,
-      hash: currentHashHex,
-      balance: ethDisplayBalance
-    };
-    if (ethBalanceRaw > 0) {
-      withBalance.push(ethResult);
-    } else {
-      noBalance.push(ethResult);
+    const ethAddr = generateEthereumAddress(currentHash);
+    if (ethAddr) {
+      const ethBal = await getBalance(ethereumCoin.api, ethAddr);
+      const ethResult = {
+        coin: ethereumCoin.coin,
+        address: ethAddr,
+        hash: currentHash,
+        balance: ethBal
+      };
+      if (ethBal > 0) {
+        resultsWithBalance.push(ethResult);
+      } else {
+        resultsNoBalance.push(ethResult);
+      }
     }
   }
   
@@ -216,17 +214,17 @@ async function getBalance(apiUrl, address) {
   const withBalanceDiv = document.getElementById("withBalance");
   const noBalanceDiv = document.getElementById("noBalance");
   
-  withBalance.forEach(res => {
+  resultsWithBalance.forEach(res => {
     const div = document.createElement("div");
     div.className = "address-box with-balance";
-    div.innerHTML = `<strong>${res.coin}</strong>: ${res.address} <br>Hash: ${res.hash} <br>Balance: ${res.balance}`;
+    div.innerHTML = `<strong>${res.coin}</strong>: ${res.address}<br>Hash: ${res.hash}<br>Balance: ${res.balance}`;
     withBalanceDiv.appendChild(div);
   });
   
-  noBalance.forEach(res => {
+  resultsNoBalance.forEach(res => {
     const div = document.createElement("div");
     div.className = "address-box no-balance";
-    div.innerHTML = `<strong>${res.coin}</strong>: ${res.address} <br>Hash: ${res.hash} <br>Balance: ${res.balance}`;
+    div.innerHTML = `<strong>${res.coin}</strong>: ${res.address}<br>Hash: ${res.hash}<br>Balance: ${res.balance}`;
     noBalanceDiv.appendChild(div);
   });
 })();
