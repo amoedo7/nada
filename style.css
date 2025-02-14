@@ -19,8 +19,19 @@ p {
     color: #555;
 }
 
-#saldo {
-    font-size: 1.5em;
-    color: #28a745;
+#resultados {
+    margin-top: 20px;
+    font-size: 1.1em;
+}
+
+.billetera {
+    margin: 10px 0;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.saldo {
     font-weight: bold;
+    color: #28a745;
 }
