@@ -1,41 +1,84 @@
 #!/bin/bash
 
-# Asegurarse de que estamos en el directorio correcto
-cd /data/data/com.termux/files/home/nada
-
-# Crear el archivo README.md si no existe
-if [ ! -f README.md ]; then
-  echo "# nada" >> README.md
-fi
-
-# Inicializar el repositorio Git si no está inicializado
-if [ ! -d ".git" ]; then
-  git init
-  git add README.md
-  git commit -m "Primer commit: Crear README.md"
-  git branch -M main
-  git remote add origin https://github.com/amoedo7/nada.git
-  git push -u origin main
-fi
-
-# Crear o reemplazar el archivo index.html básico
-echo "<!DOCTYPE html>
-<html lang='es'>
+# Crear archivo index.html
+cat <<EOL > index.html
+<!DOCTYPE html>
+<html lang="es">
 <head>
-    <meta charset='UTF-8'>
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <title>Hola Mundo</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saldo de Billetera Bitcoin</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>¡Hola Mundo!</h1>
+    <div class="container">
+        <h1>Saldo de Billetera Bitcoin</h1>
+        <p>Dirección: <strong>1MewpRkpcbFdqamPPYc1bXa9AJ189Succy</strong></p>
+        <p>Saldo: <span id="saldo">Cargando...</span></p>
+    </div>
+    <script src="script.js"></script>
 </body>
-</html>" > index.html
+</html>
+EOL
 
-# Agregar index.html al repositorio y hacer commit
-git add index.html
-git commit -m "Crear index.html básico"
+# Crear archivo style.css
+cat <<EOL > style.css
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background-color: #f9f9f9;
+    margin: 0;
+    padding: 0;
+}
 
-# Subir los cambios al repositorio remoto
-git push origin main
+.container {
+    margin-top: 50px;
+}
 
-echo "Instalador finalizado. El archivo index.html y README.md han sido creados y subidos correctamente."
+h1 {
+    color: #333;
+}
+
+p {
+    font-size: 1.2em;
+    color: #555;
+}
+
+#saldo {
+    font-size: 1.5em;
+    color: #28a745;
+    font-weight: bold;
+}
+EOL
+
+# Crear archivo script.js
+cat <<EOL > script.js
+// Dirección de la billetera Bitcoin
+const address = "1MewpRkpcbFdqamPPYc1bXa9AJ189Succy";
+
+// URL de la API para obtener el saldo
+const apiURL = \`https://blockchain.info/q/addressbalance/\${address}?confirmations=6\`;
+
+// Función para obtener el saldo de la billetera
+async function obtenerSaldo() {
+    try {
+        // Realizar la solicitud a la API
+        const response = await fetch(apiURL);
+        const saldoSatoshis = await response.text();
+
+        // Convertir Satoshis a BTC (1 BTC = 100,000,000 Satoshis)
+        const saldoBTC = saldoSatoshis / 100000000;
+
+        // Mostrar el saldo en la página
+        document.getElementById('saldo').textContent = \`\${saldoBTC} BTC\`;
+    } catch (error) {
+        document.getElementById('saldo').textContent = 'Error al obtener el saldo.';
+        console.error("Error al obtener el saldo: ", error);
+    }
+}
+
+// Llamar a la función para obtener el saldo cuando se cargue la página
+window.onload = obtenerSaldo;
+EOL
+
+echo "¡Archivos creados correctamente! index.html, style.css y script.js generados."
