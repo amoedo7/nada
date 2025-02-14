@@ -1,6 +1,9 @@
 #!/bin/bash
-# instalador.sh – Genera index.html, style.css y script.js para mostrar una lista filtrable
-# de las top 1000 claves privadas derivadas de un hash base
+# Instalador: genera los archivos necesarios para GitHub Pages
+# Se borran los archivos previos y se crean los nuevos
+
+# Borrar versiones antiguas (si existen)
+rm -f index.html script.js style.css
 
 # Crear index.html
 cat << 'EOF' > index.html
@@ -8,16 +11,12 @@ cat << 'EOF' > index.html
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Top 1000 Claves Privadas</title>
+  <title>Claves privadas y billeteras BTC</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    <h1>Top 1000 Claves Privadas</h1>
-    <input type="text" id="searchInput" placeholder="Buscar clave privada...">
-    <div id="keyList"></div>
-  </div>
+  <h1>Claves privadas y sus billeteras BTC</h1>
+  <div id="lista"></div>
   <script src="script.js"></script>
 </body>
 </html>
@@ -27,84 +26,109 @@ EOF
 cat << 'EOF' > style.css
 body {
   font-family: Arial, sans-serif;
-  background-color: #f7f7f7;
+  background-color: #f2f2f2;
+  color: #333;
   margin: 0;
   padding: 20px;
 }
-.container {
-  max-width: 800px;
-  margin: auto;
-}
 h1 {
   text-align: center;
-  color: #333;
 }
-#searchInput {
-  display: block;
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 20px;
-  font-size: 1em;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-.key-item {
+.key-block {
   background: #fff;
-  margin: 5px 0;
-  padding: 10px;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  padding: 10px 15px;
+  margin: 20px auto;
+  max-width: 600px;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.private-key {
+  font-weight: bold;
+  font-size: 1.1em;
+}
+.address {
+  margin-left: 20px;
   font-family: monospace;
-  font-size: 0.9em;
 }
 EOF
 
 # Crear script.js
 cat << 'EOF' > script.js
-// script.js: Genera y muestra una lista de 1000 claves privadas derivadas de un hash base
-// y permite filtrarlas mediante un cuadro de búsqueda
-
-// Función para generar una clave privada a partir de un índice
-function generateKey(i) {
-  const baseKey = "0000000000000000000000000000000000000000000000000000000000000001";
-  // Convertir la clave base a BigInt, sumar el índice y formatear a 64 dígitos hexadecimales
-  const keyBig = BigInt("0x" + baseKey) + BigInt(i);
-  const keyHex = keyBig.toString(16).padStart(64, '0');
-  return keyHex;
-}
-
-// Función para crear la lista de claves privadas
-function createKeyList() {
-  const totalKeys = 1000;
-  const keyListDiv = document.getElementById("keyList");
-  for (let i = 0; i < totalKeys; i++) {
-    const key = generateKey(i);
-    const div = document.createElement("div");
-    div.className = "key-item";
-    div.textContent = key;
-    keyListDiv.appendChild(div);
+// Se define una lista de "wallets" con la clave privada y sus direcciones BTC.
+// En este ejemplo se incluyen dos claves, cada una con 4 direcciones (que corresponden a formatos
+// distintos: por ejemplo, no comprimida, comprimida, P2SH y bech32).
+const wallets = [
+  {
+    privateKey: "0000000000000000000000000000000000000000000000000000000000000001",
+    addresses: [
+      { type: "U", address: "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH" },
+      { type: "C", address: "1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm" },
+      { type: "S", address: "3JvL6Ymt8MVWiCNHC7oWU6nLeHNJKLZGN" },
+      { type: "W", address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f" }
+    ]
+  },
+  {
+    privateKey: "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140",
+    addresses: [
+      { type: "U", address: "1GrLCmVQXoyJXaPJQdqssNqwxvha1eUo2E" },
+      { type: "C", address: "1JPbzbsAx1HyaDQoLMapWGoqf9pD5uha5" },
+      { type: "S", address: "38Kw57SDszoUEikRwJNBpypPSdpbAhToeD" },
+      { type: "W", address: "bc1q4h0ycu78h88wzldxc7e79vhw5xsde0n8j" }
+    ]
   }
+];
+
+// Función para consultar el saldo de una dirección usando la API pública de blockchain.info
+function fetchBalance(address, element) {
+  // Se usa el endpoint que devuelve el saldo en satoshis (se requieren 6 confirmaciones)
+  const url = `https://blockchain.info/q/addressbalance/${address}?confirmations=6`;
+  fetch(url)
+    .then(response => response.text())
+    .then(text => {
+      // Convertir satoshis a BTC (dividiendo entre 100000000)
+      let satoshis = parseInt(text, 10);
+      let btc = (satoshis / 100000000).toFixed(8);
+      element.textContent = `${address} :saldo ${btc}`;
+    })
+    .catch(err => {
+      console.error("Error consultando saldo para " + address, err);
+      element.textContent = `${address} :saldo Error`;
+    });
 }
 
-// Función para filtrar la lista según la búsqueda
-function filterList() {
-  const filter = document.getElementById("searchInput").value.toLowerCase();
-  const items = document.getElementsByClassName("key-item");
-  for (let item of items) {
-    const text = item.textContent.toLowerCase();
-    if (text.indexOf(filter) > -1) {
-      item.style.display = "";
-    } else {
-      item.style.display = "none";
-    }
-  }
+// Crea el bloque HTML para cada clave privada y sus direcciones
+function createWalletElement(wallet) {
+  const container = document.createElement('div');
+  container.className = 'key-block';
+  
+  // Mostrar la clave privada
+  const keyP = document.createElement('p');
+  keyP.className = 'private-key';
+  keyP.textContent = wallet.privateKey;
+  container.appendChild(keyP);
+  
+  // Listar cada dirección y consultar su saldo
+  wallet.addresses.forEach(addrObj => {
+    const addrP = document.createElement('p');
+    addrP.className = 'address';
+    addrP.textContent = `${addrObj.address} :saldo cargando...`;
+    container.appendChild(addrP);
+    fetchBalance(addrObj.address, addrP);
+  });
+  
+  return container;
 }
 
-// Inicializar la lista y configurar el filtro
-document.addEventListener("DOMContentLoaded", function() {
-  createKeyList();
-  document.getElementById("searchInput").addEventListener("input", filterList);
-});
+// Al cargar el DOM, se agregan todos los bloques de claves y direcciones
+function loadWallets() {
+  const lista = document.getElementById('lista');
+  wallets.forEach(wallet => {
+    const walletElement = createWalletElement(wallet);
+    lista.appendChild(walletElement);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', loadWallets);
 EOF
 
-echo "Archivos creados correctamente: index.html, style.css y script.js"
+echo "Instalación completada. Se han creado index.html, script.js y style.css."
