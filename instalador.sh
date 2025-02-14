@@ -1,184 +1,293 @@
 #!/bin/bash
+# instalador.sh – Crea index.html, style.css y script.js con funcionalidad real
 
-# Crear archivo index.html
-cat <<EOL > index.html
+cat << 'EOF' > index.html
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consulta de Billeteras</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consulta de Billeteras Derivadas</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Incluir bibliotecas desde CDN -->
+  <script src="https://unpkg.com/bitcoinjs-lib@6.0.0/dist/bitcoinjs-lib.min.js"></script>
+  <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>Consulta de Billeteras con Saldo</h1>
-        <div id="conSaldo"></div>
-        <h2>Billeteras sin saldo</h2>
-        <div id="sinSaldo"></div>
-    </div>
-    <script src="script.js"></script>
+  <div class="container">
+    <h1>Billeteras con Saldo</h1>
+    <div id="withBalance"></div>
+    <h1>Billeteras sin Saldo</h1>
+    <div id="noBalance"></div>
+  </div>
+  <script src="script.js"></script>
 </body>
 </html>
-EOL
+EOF
 
-# Crear archivo style.css
-cat <<EOL > style.css
+cat << 'EOF' > style.css
 body {
-    font-family: Arial, sans-serif;
-    text-align: center;
-    background-color: #f9f9f9;
-    margin: 0;
-    padding: 0;
+  font-family: Arial, sans-serif;
+  background: #f0f0f0;
+  margin: 0;
+  padding: 20px;
 }
-
 .container {
-    margin-top: 50px;
+  max-width: 800px;
+  margin: auto;
 }
-
 h1 {
-    color: #333;
+  text-align: center;
+  color: #333;
+}
+.address-box {
+  background: #fff;
+  margin: 10px;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 0 5px rgba(0,0,0,0.1);
+}
+.with-balance {
+  border-left: 5px solid #28a745;
+}
+.no-balance {
+  border-left: 5px solid #dc3545;
+}
+EOF
+
+cat << 'EOF' > script.js
+// ---------------------------
+// CONFIGURACIÓN DE REDES Y APIS
+// ---------------------------
+
+// Para las monedas basadas en Bitcoin, definimos los parámetros personalizados.
+const networks = {
+  bitcoin: {
+    name: "Bitcoin",
+    network: {
+      messagePrefix: '\x18Bitcoin Signed Message:\n',
+      bech32: 'bc',
+      bip32: { public: 0x0488b21e, private: 0x0488ade4 },
+      pubKeyHash: 0x00,
+      scriptHash: 0x05,
+      wif: 0x80
+    },
+    api: "https://api.blockchair.com/bitcoin/dashboards/address/"
+  },
+  bitcoincash: {
+    name: "Bitcoin Cash",
+    network: {
+      messagePrefix: '\x18Bitcoin Signed Message:\n',
+      bip32: { public: 0x0488b21e, private: 0x0488ade4 },
+      pubKeyHash: 0x00,
+      scriptHash: 0x05,
+      wif: 0x80
+    },
+    api: "https://api.blockchair.com/bitcoin-cash/dashboards/address/"
+  },
+  bitcoinsv: {
+    name: "Bitcoin SV",
+    network: {
+      messagePrefix: '\x18Bitcoin Signed Message:\n',
+      bip32: { public: 0x0488b21e, private: 0x0488ade4 },
+      pubKeyHash: 0x00,
+      scriptHash: 0x05,
+      wif: 0x80
+    },
+    api: "https://api.blockchair.com/bitcoin-sv/dashboards/address/"
+  },
+  bitcoingold: {
+    name: "Bitcoin Gold",
+    network: {
+      messagePrefix: '\x18Bitcoin Signed Message:\n',
+      bip32: { public: 0x0488b21e, private: 0x0488ade4 },
+      pubKeyHash: 0x26,
+      scriptHash: 0x17,
+      wif: 0x80
+    },
+    api: "https://api.blockchair.com/bitcoin-gold/dashboards/address/"
+  },
+  litecoin: {
+    name: "Litecoin",
+    network: {
+      messagePrefix: '\x19Litecoin Signed Message:\n',
+      bech32: 'ltc',
+      bip32: { public: 0x019da462, private: 0x019d9cfe },
+      pubKeyHash: 0x30,
+      scriptHash: 0x32,
+      wif: 0xb0
+    },
+    api: "https://api.blockchair.com/litecoin/dashboards/address/"
+  },
+  dogecoin: {
+    name: "Dogecoin",
+    network: {
+      messagePrefix: '\x19Dogecoin Signed Message:\n',
+      bip32: { public: 0x02facafd, private: 0x02fac398 },
+      pubKeyHash: 0x1e,
+      scriptHash: 0x16,
+      wif: 0x9e
+    },
+    api: "https://api.blockchair.com/dogecoin/dashboards/address/"
+  },
+  dash: {
+    name: "Dash",
+    network: {
+      messagePrefix: '\x19DarkCoin Signed Message:\n',
+      bip32: { public: 0x02fe52cc, private: 0x02fe52f8 },
+      pubKeyHash: 0x4c,
+      scriptHash: 0x10,
+      wif: 0xcc
+    },
+    api: "https://api.blockchair.com/dash/dashboards/address/"
+  },
+  zcash: {
+    name: "Zcash",
+    network: {
+      messagePrefix: '\x18Zcash Signed Message:\n',
+      bip32: { public: 0x0488b21e, private: 0x0488ade4 },
+      pubKeyHash: 0x1c,  // Aproximado para direcciones transparentes
+      scriptHash: 0x1c,
+      wif: 0x80
+    },
+    api: "https://api.blockchair.com/zcash/dashboards/address/"
+  },
+  clams: {
+    name: "Clams",
+    network: {
+      messagePrefix: '\x18Clams Signed Message:\n',
+      bip32: { public: 0x0488b21e, private: 0x0488ade4 },
+      pubKeyHash: 0x89,
+      scriptHash: 0x14,
+      wif: 0xc9
+    },
+    api: "https://api.blockchair.com/clams/dashboards/address/" // Si existe endpoint
+  }
+};
+
+// Configuración para Ethereum (usamos ethers.js)
+const ethereum = {
+  name: "Ethereum",
+  api: "https://api.blockchair.com/ethereum/dashboards/address/"
+};
+
+// ---------------------------
+// FUNCIONES PARA GENERAR DIRECCIONES
+// ---------------------------
+
+// Para monedas basadas en Bitcoin (usando bitcoinjs-lib)
+function generateAddress(networkParams, privateKeyHex) {
+  const pkBuffer = bitcoinjsLib.Buffer.from(privateKeyHex, 'hex');
+  const keyPair = bitcoinjsLib.ECPair.fromPrivateKey(pkBuffer, { network: networkParams });
+  const { address } = bitcoinjsLib.payments.p2pkh({ pubkey: keyPair.publicKey, network: networkParams });
+  return address;
 }
 
-h2 {
-    color: #333;
-    margin-top: 40px;
+// Para Ethereum (usando ethers.js)
+function generateEthereumAddress(privateKeyHex) {
+  const wallet = new ethers.Wallet(privateKeyHex);
+  return wallet.address;
 }
 
-p {
-    font-size: 1.2em;
-    color: #555;
-}
-
-#conSaldo, #sinSaldo {
-    margin-top: 20px;
-    font-size: 1.1em;
-}
-
-.billetera {
-    margin: 10px 0;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background-color: #f1f1f1;
-}
-
-.saldo {
-    font-weight: bold;
-    color: #28a745; /* Verde para saldo */
-}
-
-.saldo-none {
-    color: #ff0000; /* Rojo para sin saldo */
-}
-
-.hash {
-    font-size: 0.9em;
-    color: #aaa;
-}
-EOL
-
-# Crear archivo script.js
-cat <<EOL > script.js
-// Función para consultar el saldo de una billetera
-async function consultarSaldo(direccion) {
-    const apiURL = \`https://blockchain.info/q/addressbalance/\${direccion}?confirmations=6\`;
-    try {
-        const response = await fetch(apiURL);
-        const saldoSatoshis = await response.text();
-        const saldoBTC = saldoSatoshis / 100000000;
-        return saldoBTC;
-    } catch (error) {
-        return null; // Si hay un error, significa que no se pudo obtener el saldo
+// ---------------------------
+// FUNCIÓN PARA CONSULTAR SALDO MEDIANTE API (Blockchair)
+// La función espera que la respuesta tenga la estructura: 
+// data.data[ADDRESS].address.balance
+async function getBalance(apiUrl, address) {
+  try {
+    let response = await fetch(apiUrl + address);
+    let data = await response.json();
+    // Si la API responde correctamente:
+    if (data && data.data && data.data[address] && data.data[address].address) {
+      return data.data[address].address.balance;
+    } else {
+      return 0;
     }
+  } catch (err) {
+    console.error("Error en getBalance:", err);
+    return 0;
+  }
 }
 
-// Función para generar una dirección Bitcoin a partir de un hash
-function generarDireccionBitcoin(hash) {
-    // Aquí iría la lógica para convertir un hash en una dirección Bitcoin
-    return \`1Bitcoin\${hash.toString(16).slice(0, 12)}\`;
-}
-
-// Función para generar una dirección Bitcoin Cash a partir de un hash
-function generarDireccionBitcoinCash(hash) {
-    // Aquí iría la lógica para convertir un hash en una dirección Bitcoin Cash
-    return \`bitcoincash:q\${hash.toString(16).slice(0, 12)}\`;
-}
-
-// Función para generar una dirección Ethereum a partir de un hash
-function generarDireccionEthereum(hash) {
-    // Aquí iría la lógica para convertir un hash en una dirección Ethereum
-    return \`0x\${hash.toString(16).slice(0, 12)}\`;
-}
-
-// Función para generar una dirección Litecoin a partir de un hash
-function generarDireccionLitecoin(hash) {
-    // Aquí iría la lógica para convertir un hash en una dirección Litecoin
-    return \`L\${hash.toString(16).slice(0, 12)}\`;
-}
-
-// Función para generar direcciones de varias criptomonedas
-function generarDirecciones(hash) {
-    return {
-        bitcoin: generarDireccionBitcoin(hash),
-        bitcoinCash: generarDireccionBitcoinCash(hash),
-        ethereum: generarDireccionEthereum(hash),
-        litecoin: generarDireccionLitecoin(hash),
-    };
-}
-
-// Función principal que itera sobre los hashes
-async function iterarHashes() {
-    let conSaldoDiv = document.getElementById('conSaldo');
-    let sinSaldoDiv = document.getElementById('sinSaldo');
+// ---------------------------
+// FUNCIÓN PRINCIPAL: ITERAR SOBRE UN RANGO DE HASHES
+// NOTA: Debido a que el rango completo de un hash256 es gigantesco,
+// para efectos de demostración iteramos solo 'iterations' valores consecutivos.
+(async function() {
+  // Hash inicial (en formato de 64 dígitos hex)
+  const startHash = "0000000000000000000000000000000000000000000000000000000000000001";
+  const iterations = 10; // Cambiar este valor según lo deseado
+  const withBalance = [];
+  const noBalance = [];
+  
+  for (let i = 0; i < iterations; i++) {
+    // Calcular hash actual (como BigInt) y formatearlo a 64 dígitos
+    let currentHashBig = BigInt("0x" + startHash) + BigInt(i);
+    let currentHashHex = currentHashBig.toString(16).padStart(64, '0');
     
-    // Rango de hashes a iterar (desde el 0000000000000000000000000000000000000000000000000000000000000001 hasta el fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140)
-    const hashInicial = BigInt("0x0000000000000000000000000000000000000000000000000000000000000001");
-    const hashFinal = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-
-    let hashActual = hashInicial;
-    while (hashActual <= hashFinal) {
-        let direcciones = generarDirecciones(hashActual);
-        
-        let billeteraEncontrada = false;
-        for (let tipo in direcciones) {
-            let direccion = direcciones[tipo];
-            let saldo = await consultarSaldo(direccion);
-
-            // Crear un div para la billetera
-            let divBilletera = document.createElement('div');
-            divBilletera.classList.add('billetera');
-            let saldoTexto = saldo !== null ? \`Saldo: \${saldo} BTC\` : "No disponible";
-
-            // Si la billetera tiene saldo, la mostramos en la parte superior
-            if (saldo && saldo > 0) {
-                divBilletera.classList.add('saldo');
-                divBilletera.innerHTML = \`
-                    <p><strong>\${direccion} (\${tipo})</strong></p>
-                    <p class="hash">Hash: \${hashActual.toString(16)}</p>
-                    <p class="saldo">\${saldoTexto}</p>
-                \`;
-                conSaldoDiv.appendChild(divBilletera);
-                billeteraEncontrada = true;
-            } else {
-                // Si no tiene saldo, la mostramos al final
-                divBilletera.classList.add('saldo-none');
-                divBilletera.innerHTML = \`
-                    <p><strong>\${direccion} (\${tipo})</strong></p>
-                    <p class="hash">Hash: \${hashActual.toString(16)}</p>
-                    <p class="saldo">\${saldoTexto}</p>
-                \`;
-                sinSaldoDiv.appendChild(divBilletera);
-            }
-        }
-
-        // Aumentar el hash para iterar al siguiente
-        hashActual++;
+    // Para cada moneda basada en Bitcoin
+    for (let coin in networks) {
+      const net = networks[coin];
+      let address;
+      try {
+        address = generateAddress(net.network, currentHashHex);
+      } catch (e) {
+        address = "Error generando dirección";
+      }
+      // Consultar saldo (balance en satoshis)
+      let balanceRaw = await getBalance(net.api, address);
+      // Convertir satoshis a la unidad principal (si es mayor a 0)
+      let displayBalance = (balanceRaw > 0) ? (balanceRaw / 1e8).toFixed(8) : "0.00000000";
+      
+      const result = {
+        coin: net.name,
+        address: address,
+        hash: currentHashHex,
+        balance: displayBalance
+      };
+      if (balanceRaw > 0) {
+        withBalance.push(result);
+      } else {
+        noBalance.push(result);
+      }
     }
-}
+    
+    // Para Ethereum:
+    let ethAddress = generateEthereumAddress(currentHashHex);
+    let ethBalanceRaw = await getBalance(ethereum.api, ethAddress);
+    // Convertir de wei a ETH (asumiendo que la API devuelve wei)
+    let ethDisplayBalance = (ethBalanceRaw > 0) ? (ethBalanceRaw / 1e18).toFixed(8) : "0.00000000";
+    const ethResult = {
+      coin: ethereum.name,
+      address: ethAddress,
+      hash: currentHashHex,
+      balance: ethDisplayBalance
+    };
+    if (ethBalanceRaw > 0) {
+      withBalance.push(ethResult);
+    } else {
+      noBalance.push(ethResult);
+    }
+  }
+  
+  // Mostrar los resultados en la página:
+  const withBalanceDiv = document.getElementById("withBalance");
+  const noBalanceDiv = document.getElementById("noBalance");
+  
+  withBalance.forEach(res => {
+    const div = document.createElement("div");
+    div.className = "address-box with-balance";
+    div.innerHTML = `<strong>${res.coin}</strong>: ${res.address} <br>Hash: ${res.hash} <br>Balance: ${res.balance}`;
+    withBalanceDiv.appendChild(div);
+  });
+  
+  noBalance.forEach(res => {
+    const div = document.createElement("div");
+    div.className = "address-box no-balance";
+    div.innerHTML = `<strong>${res.coin}</strong>: ${res.address} <br>Hash: ${res.hash} <br>Balance: ${res.balance}`;
+    noBalanceDiv.appendChild(div);
+  });
+})();
+EOF
 
-// Iniciar la iteración al cargar la página
-window.onload = iterarHashes;
-EOL
-
-echo "¡Archivos creados correctamente! index.html, style.css y script.js generados."
+echo "Archivos creados correctamente: index.html, style.css y script.js"
